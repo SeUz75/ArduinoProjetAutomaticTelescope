@@ -1,27 +1,24 @@
 #include <TinyGPS++.h>
 #include <SoftwareSerial.h>
 
-static const int RXPin =4, TXPin = 3;
-static const uint32_t GPSBaud = 9600;
+TinyGPSPlus gps; // Create a GPS object
+SoftwareSerial gpsSerial(4, 3); // RX, TX
 
-TinyGPSPlus gps;
-
-SoftwareSerial ss(RXPin,TXPin);
 void setup() {
   Serial.begin(9600);      // Serial for communication with PC/Java
-  ss.begin(GPSBaud);   // Serial for communication with GPS module
+  gpsSerial.begin(9600);   // Serial for communication with GPS module
+  delay(2000);             // Allow time for Arduino initialization
 }
 
 void loop() {
-  // This sketch displays information every time a new sentence is correctly encoded.
-  while (ss.available() > 0){
-    gps.encode(ss.read());
-    if (gps.location.isUpdated()){
-      Serial.print(gps.location.lat(), 6);
-      Serial.print(","); 
-      Serial.println(gps.location.lng(), 6);
-      delay(2000); // 2-second interval
-    }
+  delay(1000); // Delay to simulate time between updates
+  String gpsData = "42.1354,24.7453"; // Simulated GPS coordinates
+  Serial.println(gpsData); // Send simulated coordinates to Java
+
+  // Listen for Java's response
+  if (Serial.available() > 0) {
+    String receivedData = Serial.readStringUntil('\n'); // Read data sent from Java
+    Serial.println(receivedData); // Echo back the received data
   }
 }
 

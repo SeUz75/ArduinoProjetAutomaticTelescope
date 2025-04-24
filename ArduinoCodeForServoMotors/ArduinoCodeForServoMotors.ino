@@ -4,8 +4,8 @@
 #include <SoftwareSerial.h>
 #include <Servo.h>
 
-Servo panServo; // Завъртаме ма хоризонталната ОС (азимут)
-Servo tiltServo; // Завъртаме ма ветикалната ОС (елевация)
+Servo azimuthServo; // Завъртаме ма хоризонталната ОС (азимут)
+Servo heightServo; // Завъртаме ма ветикалната ОС (елевация)
 
 int azimudDegrees=0;
 int heightDegrees=0;
@@ -13,49 +13,59 @@ int heightDegrees=0;
 
 static const int RXPin = 4, TXPin = 3;
 static const uint32_t GPSBaud = 9600;
+const int ledPin=10; // Built-in LED on protoShield
 
 // The TinyGPS++ object
 TinyGPSPlus gps;
 
-// The serial connection to the GPS device
-SoftwareSerial ss(RXPin, TXPin);
 
 void setup(){
   Serial.begin(9600);
-  ss.begin(GPSBaud);
+  Serial1.begin(GPSBaud);
 
   // Моторът за азимуд е в 9, и елевацията е в 10
-  panServo.attach(9);
-  tiltServo.attach(10);
+  azimuthServo.attach(7);
+  heightServo.attach(8);
+  pinMode(ledPin, OUTPUT);
+  azimuthServo.write(0);
+  heightServo.write(0);
 
 }
 
 void loop(){
 
-   if (ss.available() > 0) {
-    Serial.println("Reading GPS data..."); // Debugging line
-  }
   // This sketch displays information every time a new sentence is correctly encoded.
-  while (ss.available() > 0){
-    gps.encode(ss.read());
+  if (Serial1.available() > 0){
+    gps.encode(Serial1.read());
     if (gps.location.isUpdated()){
       Serial.print(gps.location.lat(), 6);
       Serial.print(',');
       Serial.println(gps.location.lng(), 6);
     }
+    delay(2000);
   }
 
- // Обработка на позицията на луната
-  if (Serial.available() > 0) {
-    String moonsCoord = Serial.readString(); // Четене на входен стринг които са градуса на луната. Азимуд и лантитуде
-    int commaIndex = moonsCoord.indexOf(','); // Намиране на запетаята
+
+ if (Serial.available()>0) {
+      digitalWrite(ledPin,HIGH);
+      delay(1000);
+    // Read the incoming data
+    String receivedData = Serial.readStringUntil('\n');
+    int position = receivedData.toInt();
     
-     azimudDegrees = moonsCoord.substring(0,commaIndex).toInt();
-     heightDegrees = moonsCoord.substring(commaIndex+1).toInt();
+    // Move servos
+    heightServo.write(position);
+    azimuthServo.write(position);
+    delay(1000);
+    //for(int i=0;i<position ; i++){
+    //  digitalWrite(ledPin,HIGH);
+    //  delay(1000);
+    //  digitalWrite(ledPin,LOW);
+    //  delay(1000);
+    //}
+      digitalWrite(ledPin,LOW);
+      delay(1000);
   }
-
-  panServo.write(azimudDegrees);
-  tiltServo.write(heightDegrees);
 
 }
 

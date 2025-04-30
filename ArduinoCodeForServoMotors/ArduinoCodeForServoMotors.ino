@@ -1,86 +1,136 @@
-
 #include <AccelStepper.h>
 #include <TinyGPS++.h>
-
 #include <Servo.h>
 
-Servo azimuthServo; // Завъртаме ма хоризонталната ОС (азимут)
-Servo heightServo; // Завъртаме ма ветикалната ОС (елевация)
+Servo azimuthServo; // Servo for horizontal axis (azimuth)
+Servo heightServo;  // Servo for vertical axis (elevation)
 
-int azimudDegrees=0;
-int heightDegrees=0;
-
-
-
-const int ledPin=10; // Built-in LED on protoShield
+const int ledPin = 10; // Built-in LED on protoShield
+const int azimuthServoPin = 8;
+const int heightServoPin = 7;
 
 // The TinyGPS++ object
 TinyGPSPlus gps;
 
+// Variables to store GPS coordinates
+float latitude = 42.1354;  // Default coordinates (Plovdiv, Bulgaria)
+float longitude = 24.7453; // Will be overwritten if GPS works
 
-void setup(){
-  Serial.begin(9600);
-  Serial1.begin(9600);
+// Timing variables for sending GPS data
+unsigned long lastGpsSendTime = 0;
+const unsigned long gpsSendInterval = 10000; // Send GPS data every 10 seconds
 
-  // Моторът за азимуд е в 8, и елевацията е в 7
-  azimuthServo.attach(7);
-  heightServo.attach(8);
+void setup() {
+  Serial.begin(9600);   // Communication with Java program
+  Serial1.begin(9600);  // Communication with GPS module (assuming it's connected to Serial1)
+
+  // Initialize servos
+  azimuthServo.attach(azimuthServoPin);
+  heightServo.attach(heightServoPin);
+  
   pinMode(ledPin, OUTPUT);
-  azimuthServo.write(0);
-  heightServo.write(0);
-
+  
+  // Set servos to initial position
+  azimuthServo.write(90);
+  heightServo.write(45);
+  
+  // Flash LED to indicate startup
+  for (int i = 0; i < 3; i++) {
+    digitalWrite(ledPin, HIGH);
+    delay(200);
+    digitalWrite(ledPin, LOW);
+    delay(200);
+  }
 }
 
-void loop(){
-
+void loop() {
+  // Process GPS data if available
   while (Serial1.available() > 0) {
     char c = Serial1.read();
-    gps.encode(c);  // <--- Това липсваше
-    if (gps.location.isUpdated()){
-      Serial.print(gps.location.lat(), 6);
-      Serial.print(',');
-      Serial.println(gps.location.lng(), 6);
+    gps.encode(c);
+    
+    if (gps.location.isUpdated()) {
+      // Update our coordinates if GPS has a valid fix
+      latitude = gps.location.lat();
+      longitude = gps.location.lng();
     }
   }
 
-
- // Обработка на входните данни за луната
- if (Serial.available()>0) {
-      digitalWrite(ledPin,HIGH);
-      delay(1000);
-    // Read the incoming data
-    // String receivedData = Serial.readStringUntil('\n');
-    // int position = receivedData.toInt();
-
-    // -----------------------------
-     String moonsCoord = Serial.readStringUntil('\n'); // Четене на входен стринг
-    int commaIndex = moonsCoord.indexOf(','); // Намиране на запетаята
-
-    // Извличане на координати
-    String lontitudeString = moonsCoord.substring(0, commaIndex);
-    String azimuthString = moonsCoord.substring(commaIndex + 1);
-
-    // Преобразуване в float
-    int lontitude = lontitudeString.toInt();  // Височина на Луната
-    int azimuth = azimuthString.toInt(); // Азимут на Луната
-
-
-
-    //--------------------
+  // Send GPS coordinates periodically
+  unsigned long currentTime = millis();
+  if (currentTime - lastGpsSendTime >= gpsSendInterval) {
+    // Send current coordinates to Java program
+    Serial.print(latitude, 6);
+    Serial.print(',');
+    Serial.println(longitude, 6);
     
-    // Move servos
-    heightServo.write(lontitude);
-    azimuthServo.write(azimuth);
-    delay(1000);
-    //for(int i=0;i<position ; i++){
-    //  digitalWrite(ledPin,HIGH);
-    //  delay(1000);
-    //  digitalWrite(ledPin,LOW);
-    //  delay(1000);
-    //}
-      digitalWrite(ledPin,LOW);
-      delay(1000);
+    lastGpsSendTime = currentTime;
+    
+    // Blink LED to indicate GPS data sent
+    digitalWrite(ledPin, HIGH);
+    delay(100);
+    digitalWrite(ledPin, LOW);
   }
 
-}
+  // Check for moon position data from Java
+  if (Serial.available() > 0) {
+    digitalWrite(ledPin, HIGH); // Indicate we're receiving data
+    
+    String moonCoords = Serial.readStringUntil('\n');
+    int commaIndex = moonCoords.indexOf(',');
+    
+    if (commaIndex > 0) {
+      // Extract azimuth and altitude
+      String azimuthString = moonCoords.substring(0, commaIndex);
+      String altitudeString = moonCoords.substring(commaIndex + 1);
+      
+      // Convert to float
+      float azimuthDegrees = azimuthString.toFloat();
+      float altitudeDegrees = altitudeString.toFloat();
+      
+      // FIXING THE RESTRICTED 180 DEGREES OF MY SERVO MOTORS
+      // IF AZIMUTH > 180 I will be working with the other way around 
+      if(azimuthDegrees > 180){
+        azimuthDegrees = azimuthDegrees-180;
+        //cout << "Cuz motor is a servo max turns 180  it turned " << c << " degrees with the other end which starts from 180" <<endl; 
+        //cout << "Also the altitude will be 90 - altitude (b) and then 90 + difference to get the exact degrees" << endl;
 
+        // Flip the b angle around 90, maybe?
+        altitudeDegrees = 90 + (90 - altitudeDegrees);
+
+        //cout << "Altitude motor turned " << corrected_altitude << " c degrees" <<endl;
+
+        // Move servos
+        azimuthServo.write(azimuthDegrees);
+        heightServo.write(altitudeDegrees);
+      
+      // Debug output
+      Serial.print("Moving to azimuth: ");
+      Serial.print(azimuthDegrees);
+ 
+      Serial.print("), altitude: ");
+      Serial.print(altitudeDegrees);
+
+      Serial.println(")");
+      } else{
+
+        // Move servos
+      azimuthServo.write(azimuthDegrees);
+      heightServo.write(altitudeDegrees);
+      
+      // Debug output
+      Serial.print("Moving to azimuth: ");
+      Serial.print(azimuthDegrees);
+
+      Serial.print("), altitude: ");
+      Serial.print(altitudeDegrees);
+
+      Serial.println(")");
+      }
+      
+      
+    }
+    
+    digitalWrite(ledPin, LOW);
+  }
+}

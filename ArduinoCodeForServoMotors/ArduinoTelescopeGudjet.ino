@@ -1,4 +1,3 @@
-#include <AccelStepper.h>
 #include <TinyGPS++.h>
 #include <Servo.h>
 
@@ -12,14 +11,6 @@ const int heightServoPin = 7;
 // The TinyGPS++ object
 TinyGPSPlus gps;
 
-// Variables to store GPS coordinates
-float latitude = 42.1354;  // Default coordinates (Plovdiv, Bulgaria)
-float longitude = 24.7453; // Will be overwritten if GPS works
-
-// Timing variables for sending GPS data
-unsigned long lastGpsSendTime = 0;
-const unsigned long gpsSendInterval = 10000; // Send GPS data every 10 seconds
-
 void setup() {
   Serial.begin(9600);   // Communication with Java program
   Serial1.begin(9600);  // Communication with GPS module (assuming it's connected to Serial1)
@@ -31,8 +22,8 @@ void setup() {
   pinMode(ledPin, OUTPUT);
   
   // Set servos to initial position
-  azimuthServo.write(90);
-  heightServo.write(45);
+  azimuthServo.write(0);
+  heightServo.write(0);
   
   // Flash LED to indicate startup
   for (int i = 0; i < 3; i++) {
@@ -46,30 +37,12 @@ void setup() {
 void loop() {
   // Process GPS data if available
   while (Serial1.available() > 0) {
-    char c = Serial1.read();
-    gps.encode(c);
-    
-    if (gps.location.isUpdated()) {
-      // Update our coordinates if GPS has a valid fix
-      latitude = gps.location.lat();
-      longitude = gps.location.lng();
+     gps.encode(Serial1.read());
+    if (gps.location.isUpdated()){
+      Serial.print(gps.location.lat(), 6);
+      Serial.print(',');
+      Serial.println(gps.location.lng(), 6);
     }
-  }
-
-  // Send GPS coordinates periodically
-  unsigned long currentTime = millis();
-  if (currentTime - lastGpsSendTime >= gpsSendInterval) {
-    // Send current coordinates to Java program
-    Serial.print(latitude, 6);
-    Serial.print(',');
-    Serial.println(longitude, 6);
-    
-    lastGpsSendTime = currentTime;
-    
-    // Blink LED to indicate GPS data sent
-    digitalWrite(ledPin, HIGH);
-    delay(100);
-    digitalWrite(ledPin, LOW);
   }
 
   // Check for moon position data from Java

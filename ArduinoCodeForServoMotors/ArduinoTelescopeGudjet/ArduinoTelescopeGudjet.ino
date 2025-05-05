@@ -45,7 +45,7 @@ void loop() {
     }
   }
 
-  // Check for moon position data from Java
+  // Check for celestial position data from Java
   if (Serial.available() > 0) {
     digitalWrite(ledPin, HIGH); // Indicate we're receiving data
     
@@ -65,45 +65,15 @@ void loop() {
       // IF AZIMUTH > 180 I will be working with the other way around 
       if(azimuthDegrees > 180){
         azimuthDegrees = azimuthDegrees-180;
-        //cout << "Cuz motor is a servo max turns 180  it turned " << c << " degrees with the other end which starts from 180" <<endl; 
-        //cout << "Also the altitude will be 90 - altitude (b) and then 90 + difference to get the exact degrees" << endl;
 
         // Flip the b angle around 90, maybe?
         altitudeDegrees = 90 + (90 - altitudeDegrees);
 
-        //cout << "Altitude motor turned " << corrected_altitude << " c degrees" <<endl;
-
-        // Move servos
-        azimuthServo.write(azimuthDegrees);
-        heightServo.write(altitudeDegrees);
-      
-      // Debug output
-      Serial.print("Moving to azimuth: ");
-      Serial.print(azimuthDegrees);
- 
-      Serial.print("), altitude: ");
-      Serial.print(altitudeDegrees);
-
-      Serial.println(")");
-      } else{
-
+      } 
         // Move servos
       azimuthServo.write(azimuthDegrees);
       heightServo.write(altitudeDegrees);
-      
-      // Debug output
-      Serial.print("Moving to azimuth: ");
-      Serial.print(azimuthDegrees);
-
-      Serial.print("), altitude: ");
-      Serial.print(altitudeDegrees);
-
-      Serial.println(")");
-      }
-      
-      
     }
-    
     digitalWrite(ledPin, LOW);
   }
 }
